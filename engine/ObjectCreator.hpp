@@ -20,12 +20,13 @@ class ObjectCreator {
 
 		Isolate* isolate;
 		Local<String> name;
-		Local<ObjectTemplate> ObjectInstance;
 
 	public:
+		Local<ObjectTemplate> ObjectInstance;
 
 		ObjectCreator(Isolate * isolate, const char* objectname);
 		ObjectCreator SetPropertyMethod(const char* propertyname, void (*callback)(const FunctionCallbackInfo<Value>& args));
+		void SetPropertyValue(const char* propertyname, Local<Value> value);
 		void Register();
 
 };

@@ -2,13 +2,13 @@
 
 using v8::HandleScope;
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
 
 	App app;
 
 	app.CreatePlatform(argv);
 	app.CreateVM();
-
 	{
 
 		// Enter isolate scope
@@ -25,15 +25,15 @@ int main(int argc, char* argv[]) {
 
 		// Call app setup environment hook
 		app.SetupEnvironment();
-
+		
 		// Call app start hook
 		app.Start(argc, argv);
 
+		
 	}
 
 	// Shutdown
 	app.ShutdownVM();
 
 	return 0;
-	
 }

@@ -18,7 +18,6 @@ void Environment::CreateVM() {
 
 	this->create_params.array_buffer_allocator = ArrayBuffer::Allocator::NewDefaultAllocator();
 	this->isolate = v8::Isolate::New(this->create_params);
-
 }
 
 void Environment::CreateGlobalEnvironment() {

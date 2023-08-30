@@ -68,7 +68,6 @@ bool Lemon::ExecuteString(Local<String> source, const char* filename) {
         Local<Value> result;
 
         if (!script->Run(this->GetIsolate()->GetCurrentContext()).ToLocal(&result)) {
-
             assert(try_catch.HasCaught());
             Lemon::ReportException(&try_catch);
             return false;

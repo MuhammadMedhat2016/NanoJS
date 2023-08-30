@@ -6,3 +6,5 @@
  *
  */
 version();
+
+Log("Hello");

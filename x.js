@@ -1,0 +1,3 @@
+version();
+
+Log("Hello");

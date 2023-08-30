@@ -3,6 +3,13 @@
 
 #include "Environment.hpp"
 #include "ObjectCreator.hpp"
+#include "EventLoop.hpp"
+#include <memory>
+#include "FunctionCreator.hpp"
+#include "Timers.hpp"
+#include "FileSystem.hpp"
+
+
 
 using v8::TryCatch;
 using v8::Message;

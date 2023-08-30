@@ -8,6 +8,10 @@ define INCLUDE
 	engine/Lemon.cpp
 	engine/StaticHelpers.cpp
 	engine/ObjectCreator.cpp
+	engine/Timers.cpp
+	engine/FunctionCreator.cpp
+	engine/EventLoop.cpp
+	engine/FileSystem.cpp
 endef
 
 define APP

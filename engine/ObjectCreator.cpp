@@ -18,6 +18,12 @@ ObjectCreator ObjectCreator::SetPropertyMethod(const char* propertyname, void (*
 	return *this;
 
 }
+void ObjectCreator::SetPropertyValue(const char* propertyname, Local<Value> value){
+	this->ObjectInstance->Set(
+		String::NewFromUtf8(this->isolate, propertyname, NewStringType::kNormal).ToLocalChecked(),
+		value
+	);
+}
 
 void ObjectCreator::Register() {
 
