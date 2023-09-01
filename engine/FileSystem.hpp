@@ -3,14 +3,12 @@
 #include <sstream>
 #include <functional>
 #include <thread>
-#include "Environment.hpp"
 #include <queue>
 #include <cstring>
-#include "StaticHelpers.hpp"
-#include "EventLoop.hpp"
 #include <mutex>
 #include <sys/stat.h>
-#include "ObjectCreator.hpp"
+#include "EventLoop.hpp"
+
 
 class File
 {

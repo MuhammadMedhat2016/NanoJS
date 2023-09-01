@@ -84,6 +84,8 @@ void File::readFileSync(const FunctionCallbackInfo<Value> &args)
 
 void File::readFileAsync(const FunctionCallbackInfo<Value> &args)
 {
+    auto isolate = args.GetIsolate();
+    auto context = isolate->GetCurrentContext();
 
     v8::Local<Value> v8Path = args[0];
     v8::Local<v8::Function> callback = args[1].As<v8::Function>();
@@ -91,6 +93,8 @@ void File::readFileAsync(const FunctionCallbackInfo<Value> &args)
     callbackJob *job = new callbackJob();
     job->func.Reset(args.GetIsolate(), callback);
     job->args = new std::vector<v8::Local<v8::Value>>();
+    job->context.Reset(isolate, context);
+
     File::loop->registerJob();
     File::readFileAsync(path, job, registerCallback);
 }
@@ -126,6 +130,7 @@ void File::writeFileAsync(const v8::FunctionCallbackInfo<v8::Value> &args)
 
     job->func.Reset(isolate, callback);
     job->args = new std::vector<v8::Local<Value>>();
+    job->context.Reset(isolate, context);
     File::loop->registerJob();
     File::writeFileAsync(path, data, job, registerCallback);
 }

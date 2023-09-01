@@ -19,19 +19,16 @@ void EventLoop::addTimedJob(TimedJob *job)
 }
 void EventLoop::registerJob()
 {
-    printf("\n %s", "job->timeOut");
     this->jobCount++;
     this->shouldStop = false;
 }
 void EventLoop::removeJob(Job *job)
 {
-    std::string type = typeid(job).name();
-    printf("%s \n", type);
-    if (type == "callbackJob")
+    callbackJob* ptr = dynamic_cast<callbackJob*>(job);
+    if(ptr != NULL)
         this->callbackQueue->pop();
-    else
+    else 
         this->timersQueue->pop();
-
     job->func.Reset();
     delete job->args;
     delete job;
@@ -47,7 +44,7 @@ void EventLoop::runJob(Job *job)
     for (int i = 0; i < job->args->size(); ++i)
         args[i] = (*job->args)[i];
     v8::Local<v8::Function> function = job->func.Get(isolate);
-    function->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), job->argc, args);
+    function->Call(job->context.Get(isolate), v8::Undefined(isolate), job->argc, args);
     this->removeJob(job);
 }
 void EventLoop::Run()

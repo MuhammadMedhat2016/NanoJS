@@ -21,6 +21,7 @@ void Timers::setTimeOut(const v8::FunctionCallbackInfo<v8::Value> &args)
     tJob->startTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     tJob->func.Reset(isolate, callback);
     tJob->args = new std::vector<v8::Local<v8::Value>>();
+    tJob->context.Reset(isolate, context);
     
     tJob->timeOut = Timers::loop->getLoopTime() + duration;
        
@@ -29,7 +30,6 @@ void Timers::setTimeOut(const v8::FunctionCallbackInfo<v8::Value> &args)
     for (int i = 2; i < args.Length(); ++i)
         tJob->args->push_back(args[i]);
      
-    printf("%p %p\n", loop, Timers::loop);
     Timers::loop->registerJob();
      
     //Timers::loop->addJobToTimersHeap(tJob);

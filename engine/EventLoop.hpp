@@ -11,7 +11,10 @@ struct Job
 {
     v8::Persistent<v8::Function> func;
     std::vector<v8::Local<v8::Value>> *args;
+    v8::Persistent<v8::Context> context;
     int argc;
+
+    virtual void dummy(){};
 };
 struct callbackJob : public Job
 {
