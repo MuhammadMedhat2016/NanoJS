@@ -10,12 +10,11 @@ void App::SetupEnvironment()
 	App::loop = new EventLoop(this->GetIsolate());
 	File::loop = App::loop;
 	Timers::loop = App::loop;
-
 	auto isolate = this->GetIsolate();
 
 	this->GetGlobal()->Set(isolate, "log", FunctionTemplate::New(isolate, log));
 	this->GetGlobal()->Set(isolate, "internalBinding", FunctionTemplate::New(isolate, internalBinding));
-
+	this->GetGlobal()->Set(isolate, "setTimeOut",FunctionTemplate::New(isolate, Timers::setTimeOut));
 	setBinderObject();
 	setupFileSystemModuleObject();
 
@@ -48,7 +47,7 @@ void App::setupFileSystemModuleObject()
 	v8::Local<v8::Context> context = Binder.Get(isolate)->CreationContext();
 	v8::Context::Scope handleScope(context);
 	v8::Local<v8 ::Object> fsObject = v8::Object::New(isolate);
-	
+
 	readFileSync.attachMethodToObject(fsObject);
 	readFileAsync.attachMethodToObject(fsObject);
 	writeFileSync.attachMethodToObject(fsObject);

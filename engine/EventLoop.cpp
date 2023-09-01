@@ -6,7 +6,7 @@ EventLoop::EventLoop(v8::Isolate *isolate)
     this->callbackQueue = new std::queue<callbackJob *>();
     this->timersQueue = new std::queue<TimedJob *>();
     this->isolate = isolate;
-    this->startTime = this->currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    this->startTime = this->currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) * 1000;
 }
 
 void EventLoop::addCallbackJob(callbackJob *job)
@@ -78,7 +78,8 @@ void EventLoop::updateTimers()
     if (this->heap.size() != 0)
     {
         TimedJob *head = this->getTopTimer();
-        while (head->timeOut <= this->getLoopTime())
+        //printf("headTimeout is %d loop time is %d \n", head->timeOut, this->getLoopTime());
+        while (this->heap.size() != 0 && head->timeOut <= this->getLoopTime())
         {
             this->addTimedJob(head);
             this->removeJobFromTimersHeap();
@@ -88,17 +89,16 @@ void EventLoop::updateTimers()
 }
 time_t EventLoop::getLoopTime()
 {
-    return this->currentTime - this->startTime;
+    return this->currentTime;
 }
 
 void EventLoop::updateTime()
 {
-    this->currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    this->currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) * 1000;
 }
 
 void EventLoop::addJobToTimersHeap(TimedJob *job)
 {
-
     this->heap.push(job);
 }
 

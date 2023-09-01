@@ -30,7 +30,7 @@ class TimedJobComparator
 public:
     bool operator()(const TimedJob *job1, const TimedJob *job2)
     {
-        if(job1->timeOut < job2->timeOut) return true;
+        if(job1->timeOut > job2->timeOut) return true;
         else if (job1->timeOut == job2->timeOut) return job1->startTime < job2->startTime; 
         return false;
     }
