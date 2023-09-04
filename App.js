@@ -8,13 +8,51 @@
 
 const fs = internalBinding("fs");
 
-fs.writeFileAsync("Hello.txt", "Hello World from NEST.JS" ,(bytesRead) =>
-  log(`Done Bytes Written are ${bytesRead}`)
-);
+class fileSystem {
+  watchFile(file, options = { interval: 500, persistent: true }, listener) {
+    let path;
+    let optionsObj = options;
+    let callback;
+    
+    if (typeof file === "string") path = file;
+    
+    else throw new Error("first argument must be a path to a string");
 
+    if(typeof optionsObj === "function")
+    {
+        callback = optionsObj;
+        optionsObj = { interval: 500, persistent: true };
+    }
+    else 
+    {
+        if(listener)
+            callback = listener;
+        else
+            throw new Error("Too Few Arguments, a callback function must be specified");
+    }
+    function callbackWrapper()
+    {
+        let prev = fs.getStatsSync(path);
+        function wrapper()
+        {
+            let current = fs.getStatsSync(path);
+            callback(prev,current);
+            prev = current;
+        }
+        return wrapper;
+    }
+    
+    let wrapper = callbackWrapper();
+    fs.watch(path, optionsObj, wrapper);
 
-setTimeOut(() => log("Hello after 1 sec"), 1000);
-setTimeOut(() => log("Hello after 3 sec"), 3000);
-setTimeOut(() => log("Hello after 0 sec"), 0);
-setTimeOut(() => log("Hello after 5 sec"), 5000);
-log("Hello")
+  }
+}
+
+let file = new fileSystem();
+
+file.watchFile("Hello.txt", (prev, curr) => {
+    log(prev);
+    log(curr);
+})
+
+log("Hello");

@@ -1,5 +1,8 @@
 #include "EventLoop.hpp"
 
+static std::mutex callbackMutex;
+static std::mutex timerMutex;
+
 EventLoop::EventLoop(v8::Isolate *isolate)
     : jobCount(0), shouldStop(true)
 {
@@ -11,10 +14,13 @@ EventLoop::EventLoop(v8::Isolate *isolate)
 
 void EventLoop::addCallbackJob(callbackJob *job)
 {
+    std::lock_guard<std::mutex> guard(callbackMutex);
     this->callbackQueue->push(job);
 }
 void EventLoop::addTimedJob(TimedJob *job)
 {
+
+    std::lock_guard<std::mutex> guard(timerMutex);
     this->timersQueue->push(job);
 }
 void EventLoop::registerJob()
@@ -24,12 +30,24 @@ void EventLoop::registerJob()
 }
 void EventLoop::removeJob(Job *job)
 {
-    callbackJob* ptr = dynamic_cast<callbackJob*>(job);
-    if(ptr != NULL)
+    callbackJob *ptr = dynamic_cast<callbackJob *>(job);
+    if (ptr != NULL)
         this->callbackQueue->pop();
-    else 
+    else
+    {
         this->timersQueue->pop();
+        TimedJob *tJob = reinterpret_cast<TimedJob *>(job);
+        if (tJob->isInterval)
+        {
+            tJob->timeOut = tJob->duration + this->getLoopTime();
+            this->addJobToTimersHeap(tJob);
+            return;
+        }
+    }
     job->func.Reset();
+    job->context.Reset();
+    for (int i = 0; i < job->argc; ++i)
+        (*job->args)[i].Reset();
     delete job->args;
     delete job;
     this->jobCount--;
@@ -42,7 +60,7 @@ void EventLoop::runJob(Job *job)
     job->argc = job->args->size();
     v8::Local<v8::Value> args[job->argc];
     for (int i = 0; i < job->args->size(); ++i)
-        args[i] = (*job->args)[i];
+        args[i] = (*job->args)[i].Get(isolate);
     v8::Local<v8::Function> function = job->func.Get(isolate);
     function->Call(job->context.Get(isolate), v8::Undefined(isolate), job->argc, args);
     this->removeJob(job);
@@ -78,7 +96,7 @@ void EventLoop::updateTimers()
     if (this->heap.size() != 0)
     {
         TimedJob *head = this->getTopTimer();
-        //printf("headTimeout is %d loop time is %d \n", head->timeOut, this->getLoopTime());
+        // printf("headTimeout is %d loop time is %d \n", head->timeOut, this->getLoopTime());
         while (this->heap.size() != 0 && head->timeOut <= this->getLoopTime())
         {
             this->addTimedJob(head);

@@ -10,11 +10,14 @@ void App::SetupEnvironment()
 	App::loop = new EventLoop(this->GetIsolate());
 	File::loop = App::loop;
 	Timers::loop = App::loop;
+	FileWatcher::loop = App::loop;
 	auto isolate = this->GetIsolate();
 
 	this->GetGlobal()->Set(isolate, "log", FunctionTemplate::New(isolate, log));
 	this->GetGlobal()->Set(isolate, "internalBinding", FunctionTemplate::New(isolate, internalBinding));
-	this->GetGlobal()->Set(isolate, "setTimeOut",FunctionTemplate::New(isolate, Timers::setTimeOut));
+	this->GetGlobal()->Set(isolate, "setTimeOut", FunctionTemplate::New(isolate, Timers::setTimeOut));
+	this->GetGlobal()->Set(isolate, "setInterval", FunctionTemplate::New(isolate, Timers::setInterval));
+
 	setBinderObject();
 	setupFileSystemModuleObject();
 
@@ -37,13 +40,16 @@ void App::addPropertyToBinder(const char *propertyName, v8::Local<v8::Value> pro
 
 void App::setupFileSystemModuleObject()
 {
-	
+
 	auto isolate = this->GetIsolate();
 	FunctionCreator readFileSync = FunctionCreator(isolate, "readFileSync", File::readFileSync);
 	FunctionCreator readFileAsync = FunctionCreator(isolate, "readFileAsync", File::readFileAsync);
 	FunctionCreator writeFileSync = FunctionCreator(isolate, "writeFileSync", File::writeFileSync);
 	FunctionCreator writeFileAsync = FunctionCreator(isolate, "writeFileAsync", File::writeFileAsync);
-
+	FunctionCreator getStatsAsync = FunctionCreator(isolate, "getStatsAsync", File::getStatsAsync);
+	FunctionCreator getStatsSync = FunctionCreator(isolate, "getStatsSync", File::getStatsSync);
+	FunctionCreator watch = FunctionCreator(isolate, "watch", FileWatcher::watch);
+	
 	v8::Local<v8::Context> context = Binder.Get(isolate)->CreationContext();
 	v8::Context::Scope handleScope(context);
 	v8::Local<v8 ::Object> fsObject = v8::Object::New(isolate);
@@ -52,7 +58,10 @@ void App::setupFileSystemModuleObject()
 	readFileAsync.attachMethodToObject(fsObject);
 	writeFileSync.attachMethodToObject(fsObject);
 	writeFileAsync.attachMethodToObject(fsObject);
-
+	getStatsAsync.attachMethodToObject(fsObject);
+	getStatsSync.attachMethodToObject(fsObject);
+	watch.attachMethodToObject(fsObject);
+	
 	FileSystem.Reset(isolate, fsObject);
 	addPropertyToBinder("fs", FileSystem.Get(isolate));
 }

@@ -23,10 +23,11 @@ class ObjectCreator {
 
 	public:
 		Local<ObjectTemplate> ObjectInstance;
-
+	
 		ObjectCreator(Isolate * isolate, const char* objectname);
 		ObjectCreator SetPropertyMethod(const char* propertyname, void (*callback)(const FunctionCallbackInfo<Value>& args));
 		void SetPropertyValue(const char* propertyname, Local<Value> value);
+		v8::Local<v8::Object> getObject(v8::Local<v8::Context>);
 		void Register();
 
 };

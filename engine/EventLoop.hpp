@@ -6,32 +6,37 @@
 #include <chrono>
 #include <typeinfo>
 #include <string.h>
-
+#include <mutex>
 struct Job
 {
     v8::Persistent<v8::Function> func;
-    std::vector<v8::Local<v8::Value>> *args;
     v8::Persistent<v8::Context> context;
-    int argc;
+    std::vector<v8::Persistent<v8::Value>> *args;
 
+    int argc;
     virtual void dummy(){};
 };
 struct callbackJob : public Job
 {
+
 };
 
 struct TimedJob : public Job
 {
     time_t startTime;
     time_t timeOut;
+    time_t duration;
+    bool isInterval;
 };
 class TimedJobComparator
 {
 public:
     bool operator()(const TimedJob *job1, const TimedJob *job2)
     {
-        if(job1->timeOut > job2->timeOut) return true;
-        else if (job1->timeOut == job2->timeOut) return job1->startTime < job2->startTime; 
+        if (job1->timeOut > job2->timeOut)
+            return true;
+        else if (job1->timeOut == job2->timeOut)
+            return job1->startTime < job2->startTime;
         return false;
     }
 };
@@ -49,6 +54,7 @@ private:
     void runTimers();
     void runCallbacks();
     void updateTimers();
+
 public:
     v8::Isolate *isolate;
     void runJob(Job *job);

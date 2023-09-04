@@ -7,6 +7,8 @@
 #include <cstring>
 #include <mutex>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include "ObjectCreator.hpp"
 #include "EventLoop.hpp"
 
 
@@ -22,6 +24,7 @@ public:
     static void writeFileAsync(const v8::FunctionCallbackInfo<v8::Value> &);
     static void getStatsAsync(const v8::FunctionCallbackInfo<v8::Value> &);
     static void getStatsAsync(const char*, callbackJob*, void (*callback)(callbackJob *));
+    static void getStatsSync(const v8::FunctionCallbackInfo<v8::Value> &);
     static std::string readFileSync(const char *);
     static void readFileAsync(const char *, callbackJob *, void (*callback)(callbackJob *));
     static void writeFileAsync(const char *, const char *, callbackJob *, void (*callback)(callbackJob *));

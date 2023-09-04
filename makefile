@@ -12,6 +12,7 @@ define INCLUDE
 	engine/FileSystem.cpp
 	engine/Timers.cpp
 	engine/FunctionCreator.cpp
+	engine/FileWatcher.cpp
 endef
 
 define APP
