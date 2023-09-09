@@ -4,14 +4,42 @@ EventLoop *App::loop = nullptr;
 
 v8::Persistent<v8::Object> App::Binder;
 v8::Persistent<v8::Object> App::FileSystem;
+v8::Persistent<v8::Object> App::Buffer;
+v8::ArrayBuffer::Allocator *App::allocator;
+
+// void getZeroField(const v8::FunctionCallbackInfo<v8::Value> &args);
+
+bool isAnyArrayBuffer(v8::Local<v8::Value> object)
+{
+	if (object->IsArrayBuffer() || object->IsArrayBufferView() || object->IsSharedArrayBuffer())
+		return true;
+	return false;
+}
+
+void getZeroField(const v8::FunctionCallbackInfo<v8::Value> &args)
+{
+	NestArrayBufferAllocator *allocator = reinterpret_cast<NestArrayBufferAllocator *>(App::allocator);
+
+	uint32_t *field = allocator->zero_fill_field();
+	std::unique_ptr<v8::BackingStore> backing =
+		ArrayBuffer::NewBackingStore(
+			field,
+			sizeof(*field),
+			[](void *, size_t, void *) {},
+			nullptr);
+	v8::Local<v8::ArrayBuffer> arrayBuffer = v8::ArrayBuffer::New(App::loop->isolate, std::move(backing));
+	args.GetReturnValue().Set(v8::Uint32Array::New(arrayBuffer, 0, 1));
+}
 
 void App::SetupEnvironment()
 {
+	auto isolate = this->GetIsolate();
+	App::allocator = this->getArrayBufferAllocator();
 	App::loop = new EventLoop(this->GetIsolate());
 	File::loop = App::loop;
 	Timers::loop = App::loop;
 	FileWatcher::loop = App::loop;
-	auto isolate = this->GetIsolate();
+	Buffer::loop = App::loop;
 
 	this->GetGlobal()->Set(isolate, "log", FunctionTemplate::New(isolate, log));
 	this->GetGlobal()->Set(isolate, "internalBinding", FunctionTemplate::New(isolate, internalBinding));
@@ -20,6 +48,11 @@ void App::SetupEnvironment()
 
 	setBinderObject();
 	setupFileSystemModuleObject();
+	setupBufferModuleObject();
+
+	v8::Local<v8::Context> ctx = Binder.Get(isolate)->CreationContext();
+
+	addPropertyToBinder("getZeroFillToggle", FunctionTemplate::New(isolate, getZeroField)->GetFunction(ctx).ToLocalChecked());
 
 	// addPropertyToBinder("fs", FunctionTemplate::New(isolate, Environment::Test)->GetFunction(Binder.Get(isolate)->CreationContext()).ToLocalChecked());
 }
@@ -49,7 +82,7 @@ void App::setupFileSystemModuleObject()
 	FunctionCreator getStatsAsync = FunctionCreator(isolate, "getStatsAsync", File::getStatsAsync);
 	FunctionCreator getStatsSync = FunctionCreator(isolate, "getStatsSync", File::getStatsSync);
 	FunctionCreator watch = FunctionCreator(isolate, "watch", FileWatcher::watch);
-	
+
 	v8::Local<v8::Context> context = Binder.Get(isolate)->CreationContext();
 	v8::Context::Scope handleScope(context);
 	v8::Local<v8 ::Object> fsObject = v8::Object::New(isolate);
@@ -61,11 +94,27 @@ void App::setupFileSystemModuleObject()
 	getStatsAsync.attachMethodToObject(fsObject);
 	getStatsSync.attachMethodToObject(fsObject);
 	watch.attachMethodToObject(fsObject);
-	
+
 	FileSystem.Reset(isolate, fsObject);
 	addPropertyToBinder("fs", FileSystem.Get(isolate));
 }
+void App::setupBufferModuleObject()
+{
+	auto isolate = this->GetIsolate();
 
+	FunctionCreator byteLengthUtf8 = FunctionCreator(isolate, "byteLengthUtf8", Buffer::byteLengthUtf8);
+	FunctionCreator utf8Write = FunctionCreator(isolate, "utf8Write", Buffer::utf8Write);
+
+	v8::Local<v8::Context> context = Binder.Get(isolate)->CreationContext();
+	v8::Context::Scope handleScope(context);
+	v8::Local<v8 ::Object> bufferObj = v8::Object::New(isolate);
+
+	byteLengthUtf8.attachMethodToObject(bufferObj);
+	utf8Write.attachMethodToObject(bufferObj);
+
+	Buffer.Reset(isolate, bufferObj);
+	addPropertyToBinder("Buffer", Buffer.Get(isolate));
+}
 void App::logObject(int indentLevel, v8::Local<v8::Context> context, v8::Local<v8::Object> obj)
 {
 	auto isolate = context->GetIsolate();
@@ -77,7 +126,11 @@ void App::logObject(int indentLevel, v8::Local<v8::Context> context, v8::Local<v
 	{
 		v8::Local<v8::String> propoerty = properties->Get(context, i).ToLocalChecked().As<v8::String>();
 		v8::Local<v8::Value> value = obj->Get(context, propoerty).ToLocalChecked();
-		if (value->IsObject())
+		if (value->IsFunction())
+		{
+			printf("%s : %s\n", (indent + StaticHelpers::ToString(isolate, propoerty)).c_str(), " => Native Code");
+		}
+		else if (value->IsObject())
 		{
 
 			printf("%s : %s\n", (indent + StaticHelpers::ToString(isolate, propoerty)).c_str(), "{");
@@ -90,13 +143,50 @@ void App::logObject(int indentLevel, v8::Local<v8::Context> context, v8::Local<v
 		}
 	}
 }
+void logBuffer(char *ptr, int byteLength)
+{
+	printf("< ");
+	for (int i = 0; i < byteLength; ++i, ptr++)
+		printf("%.2x ", *ptr & 255);
+	printf(">");
+	printf("\n");
+}
 void App::log(const FunctionCallbackInfo<Value> &args)
 {
 	auto isolate = args.GetIsolate();
 	auto context = isolate->GetCurrentContext();
 	for (int i = 0; i < args.Length(); ++i)
 	{
-		if (args[i]->IsObject())
+
+		if (args[i]->IsFunction())
+		{
+			printf("%s %s\n", Local<v8::Function>::Cast(args[i])->GetName(), " => native code");
+		}
+		else if (isAnyArrayBuffer(args[i]))
+		{
+			char *data = nullptr;
+			size_t bufferLength;
+			if (args[i]->IsArrayBufferView())
+			{
+				v8::Local<v8::ArrayBufferView> array = v8::Local<v8::ArrayBufferView>::Cast(args[i]);
+				data = reinterpret_cast<char *>(array->Buffer()->GetBackingStore()->Data());
+				bufferLength = array->ByteLength();
+			}
+			else if (args[i]->IsArrayBuffer())
+			{
+				v8::Local<v8::ArrayBuffer> array = v8::Local<v8::ArrayBuffer>::Cast(args[i]);
+				data = reinterpret_cast<char *>(array->GetBackingStore()->Data());
+				bufferLength = array->ByteLength();
+			}
+			else
+			{
+				v8::Local<v8::SharedArrayBuffer> array = v8::Local<v8::SharedArrayBuffer>::Cast(args[i]);
+				data = reinterpret_cast<char *>(array->GetBackingStore()->Data());
+				bufferLength = array->ByteLength();
+			}
+			logBuffer(data, bufferLength);
+		}
+		else if (args[i]->IsObject())
 		{
 			printf("%s\n", "{");
 			App::logObject(3, context, args[i].As<v8::Object>());
@@ -111,17 +201,18 @@ void App::log(const FunctionCallbackInfo<Value> &args)
 	}
 	printf("\n");
 }
+
 void App::internalBinding(const FunctionCallbackInfo<Value> &args)
 {
 	v8::Local<v8::String> propertyName = args[0].As<v8::String>();
 	v8::Local<v8::Object> binder = Binder.Get(args.GetIsolate());
 	v8::Local<v8::Value> value = binder->Get(binder->CreationContext(), propertyName).ToLocalChecked();
 	args.GetReturnValue().Set(value);
+	// getZeroField(args);
 }
 
 void App::Start(int argc, char *argv[])
 {
-
 	for (int i = 1; i < argc; ++i)
 	{
 		// Get filename of the javascript file to run
@@ -132,7 +223,6 @@ void App::Start(int argc, char *argv[])
 
 		// Enter the new context
 		Context::Scope contextscope(context);
-
 		// Run the javascript file
 		this->RunJsFromFile(filename);
 	}

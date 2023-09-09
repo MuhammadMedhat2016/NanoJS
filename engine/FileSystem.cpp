@@ -50,6 +50,7 @@ std::string File::readFileSync(const char *path)
         buffer << file.rdbuf();
         file.close();
         return buffer.str();
+        
     }
     else
     {
@@ -193,6 +194,7 @@ std::string getPermissions(mode_t mode)
 }
 void statsAsync(const char *path, callbackJob *job, void (*callback)(callbackJob *j))
 {
+    
     auto isolate = File::loop->isolate;
     auto context = job->context.Get(isolate);
     struct stat buffer;
@@ -216,7 +218,7 @@ void statsAsync(const char *path, callbackJob *job, void (*callback)(callbackJob
         statsTemp.SetPropertyValue("blksize", v8::Integer::New(isolate, buffer.st_blksize));
         statsTemp.SetPropertyValue("atimeMs", v8::Integer::New(isolate, buffer.st_atime * 1000));
         statsTemp.SetPropertyValue("mtimeMs", v8::Integer::New(isolate, buffer.st_mtime * 1000));
-        statsTemp.SetPropertyValue("ctimeMs", v8::Integer::New(isolate, buffer.st_ctime * 1000));
+        statsTemp.SetPropertyValue("ctimeMs", v8::Integer::New(isolate, buffer.st_ctim.tv_sec * 1000));
 
         (*job->args)[1].Reset(isolate, statsTemp.getObject(context));
     }
@@ -234,8 +236,9 @@ void File::getStatsSync(const v8::FunctionCallbackInfo<v8::Value> &args)
     auto isolate = args.GetIsolate();
     auto context = isolate->GetCurrentContext();
     v8::Local<v8::String> v8Path = args[0].As<v8::String>();
-    const char *path = StaticHelpers::ToString(isolate, v8Path);
 
+    const char *path = StaticHelpers::ToString(isolate, v8Path);
+    
     struct stat buffer;
     int ret = stat(path, &buffer);
     if (ret != 0)
@@ -244,6 +247,7 @@ void File::getStatsSync(const v8::FunctionCallbackInfo<v8::Value> &args)
     }
     else
     {
+        
         ObjectCreator statsTemp = ObjectCreator(isolate, "statsTemp");
         statsTemp.SetPropertyValue("mode", StaticHelpers::ToLocalString(isolate, getPermissions(buffer.st_mode).c_str()));
         statsTemp.SetPropertyValue("dev", v8::Integer::New(isolate, buffer.st_dev));

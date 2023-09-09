@@ -13,6 +13,9 @@ define INCLUDE
 	engine/Timers.cpp
 	engine/FunctionCreator.cpp
 	engine/FileWatcher.cpp
+	engine/Buffers/NestArrayBufferAllocator.cpp
+	engine/lib/v8/include/v8.h
+	engine/Buffer.cpp
 endef
 
 define APP

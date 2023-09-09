@@ -11,6 +11,8 @@
 #include "ObjectCreator.hpp"
 #include "EventLoop.hpp"
 
+#include <sys/types.h>
+#include <sys/socket.h>
 
 class File
 {
@@ -23,7 +25,7 @@ public:
     static void writeFileSync(const v8::FunctionCallbackInfo<v8::Value> &);
     static void writeFileAsync(const v8::FunctionCallbackInfo<v8::Value> &);
     static void getStatsAsync(const v8::FunctionCallbackInfo<v8::Value> &);
-    static void getStatsAsync(const char*, callbackJob*, void (*callback)(callbackJob *));
+    static void getStatsAsync(const char *, callbackJob *, void (*callback)(callbackJob *));
     static void getStatsSync(const v8::FunctionCallbackInfo<v8::Value> &);
     static std::string readFileSync(const char *);
     static void readFileAsync(const char *, callbackJob *, void (*callback)(callbackJob *));

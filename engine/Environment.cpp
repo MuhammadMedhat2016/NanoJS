@@ -14,11 +14,18 @@ void Environment::CreatePlatform(char *argv[])
 	V8::InitializePlatform(platform.get());
 	V8::Initialize();
 }
+v8::ArrayBuffer::Allocator *Environment::getArrayBufferAllocator()
+{
+
+	return this->create_params.array_buffer_allocator;
+}
 
 void Environment::CreateVM()
 {
 
-	this->create_params.array_buffer_allocator = ArrayBuffer::Allocator::NewDefaultAllocator();
+	//this->create_params.array_buffer_allocator = ArrayBuffer::Allocator::NewDefaultAllocator();
+	this->create_params.array_buffer_allocator = new NestArrayBufferAllocator();
+
 	this->isolate = v8::Isolate::New(this->create_params);
 }
 

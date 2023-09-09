@@ -5,6 +5,8 @@
 #include "libplatform/libplatform.h"
 #include <v8.h>
 #include <memory>
+#include "Buffers/NestArrayBufferAllocator.hpp"
+
 
 using v8::ArrayBuffer;
 using v8::Context;
@@ -36,9 +38,10 @@ protected:
 	virtual Local<ObjectTemplate> GetGlobal() final;
 
 public:
-	static void setupFileSystemModuleObject();
 
 	Isolate *GetIsolate();
+
+	v8::ArrayBuffer::Allocator* getArrayBufferAllocator();
 
 	virtual void CreatePlatform(char *argv[]) final;
 	virtual void CreateVM() final;
