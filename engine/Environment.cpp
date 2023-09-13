@@ -23,7 +23,7 @@ v8::ArrayBuffer::Allocator *Environment::getArrayBufferAllocator()
 void Environment::CreateVM()
 {
 
-	//this->create_params.array_buffer_allocator = ArrayBuffer::Allocator::NewDefaultAllocator();
+	// this->create_params.array_buffer_allocator = ArrayBuffer::Allocator::NewDefaultAllocator();
 	this->create_params.array_buffer_allocator = new NestArrayBufferAllocator();
 
 	this->isolate = v8::Isolate::New(this->create_params);
@@ -50,7 +50,7 @@ void Environment::ShutdownVM()
 
 Local<Context> Environment::CreateLocalContext()
 {
-	return Context::New(this->isolate, NULL, this->global);
+	return this->context = Context::New(this->isolate, NULL, this->global);
 }
 
 Isolate *Environment::GetIsolate()
@@ -64,6 +64,9 @@ void Environment::SetupEngineEnvironment()
 
 	this->GetGlobal()->Set(
 		String::NewFromUtf8(this->GetIsolate(), "version", NewStringType::kNormal).ToLocalChecked(),
+		FunctionTemplate::New(this->GetIsolate(), Environment::Version));
+	this->GetGlobal()->Set(
+		String::NewFromUtf8(this->GetIsolate(), "Dummy", NewStringType::kNormal).ToLocalChecked(),
 		FunctionTemplate::New(this->GetIsolate(), Environment::Version));
 }
 

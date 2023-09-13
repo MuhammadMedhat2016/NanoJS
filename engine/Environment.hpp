@@ -36,6 +36,7 @@ private:
 protected:
 	virtual Local<Context> CreateLocalContext() final;
 	virtual Local<ObjectTemplate> GetGlobal() final;
+	v8::Local<v8::Context> context;
 
 public:
 

@@ -1,3 +1,1 @@
-Hello World this my JS Runtime envirnment for back-end Development
-i will add to it continuously as i am learning core nodeJS
-it wll call it NestJS jlkgjfh\lkgjfh\lkgx
+Hello World this my JS Runtime envirnment

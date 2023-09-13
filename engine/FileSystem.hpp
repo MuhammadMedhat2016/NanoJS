@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include "ObjectCreator.hpp"
 #include "EventLoop.hpp"
-
+#include "Buffer.hpp"
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -28,6 +28,6 @@ public:
     static void getStatsAsync(const char *, callbackJob *, void (*callback)(callbackJob *));
     static void getStatsSync(const v8::FunctionCallbackInfo<v8::Value> &);
     static std::string readFileSync(const char *);
-    static void readFileAsync(const char *, callbackJob *, void (*callback)(callbackJob *));
+    static void readFileAsync(const char *, callbackJob *, v8::Local<v8::Object> options);
     static void writeFileAsync(const char *, const char *, callbackJob *, void (*callback)(callbackJob *));
 };

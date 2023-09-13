@@ -53,8 +53,8 @@ file.watchFile("Hello.txt", (prev, curr) => {
     log(data);
   });
 });
- */
-'use strict'
+*/
+"use strict";
 
 class EventEmitter {
   listener = Object.create(null);
@@ -117,7 +117,19 @@ class FastBuffer extends Uint8Array {
   constructor(bufferOrLength, offset, length) {
     super(bufferOrLength, offset, length);
   }
+  toString(encoding) {
+    if (encoding == undefined) {
+      encoding = "utf-8";
+    }
+    const ops = getEncodingOps(encoding);
+    if (ops === undefined) throw new Error("No such encoding exists");
+
+    return ops.decodeToString(this);
+  }
 }
+
+FastBuffer.prototype.constructor = Buffer;
+Buffer.prototype = FastBuffer.prototype;
 
 const zero_fill_toggle = internalBinding("getZeroFillToggle")();
 
@@ -130,7 +142,9 @@ function createUnsafeBuffer(size) {
   }
 }
 
-let allocPool, poolOffset, poolSize = 8 * 1024;
+let allocPool,
+  poolOffset,
+  poolSize = 8 * 1024;
 
 function createPool() {
   allocPool = createUnsafeBuffer(poolSize).buffer;
@@ -158,15 +172,21 @@ const encodingOps = {
     encoding: "utf8",
     byteLength: buffer.byteLengthUtf8,
     encodingVal: 0,
-    write: (buf, string, offset, len) => buffer.utf8Write(buf,string, offset, len),
+    write: (buf, string, offset, len) =>
+      buffer.utf8Write(buf, string, offset, len),
     slice: (buf, start, end) => buf.utf8Slice(start, end),
+    decodeToString: (buf) =>
+      buffer.fromUtf8(buf, buf.byteOffset, buf.byteLength),
   },
   utf16le: {
     encoding: "utf16le",
     encodingVal: 1,
     byteLength: (string) => string.length * 2,
-    write: (buf, string, offset, len) => buf.ucs2Write(string, offset, len),
+    write: (buf, string, offset, len) =>
+      buffer.ucs2Write(buf, string, offset, len),
     slice: (buf, start, end) => buf.ucs2Slice(start, end),
+    decodeToString: (buf) =>
+      buffer.fromUtf16(buf, buf.byteOffset, buf.byteLength),
   },
 };
 
@@ -214,71 +234,161 @@ function __fromString(value, encoding) {
 }
 function __fromStringFast(str, ops) {
   const length = ops.byteLength(str);
-  if (length >= poolSize >>> 1) return createFromString(str, ops.encodingVal);
+  if (length >= poolSize >>> 1) {
+    const buff = createUnsafeBuffer(length);
+    ops.write(buff, str, 0, length);
+    return buff;
+  }
   const poolMaxSize = poolSize - poolOffset;
   if (length > poolMaxSize) createPool();
-  log(poolOffset)
-  const buffer = new FastBuffer(allocPool, poolOffset, length);
-  const bytesWritten = ops.write(buffer, str, 0, length);
+  const buff = new FastBuffer(allocPool, poolOffset, length);
+  const bytesWritten = ops.write(buff, str, poolOffset, length);
   poolOffset += bytesWritten;
-  alignPool();  
+  alignPool();
+  return buff;
+}
+
+function __fromArrayBuffer(value, offset, length) {
+  if (offset == undefined) {
+    offset = 0;
+  } else {
+    offset = +offset;
+    if (isNaN(offset)) offset = 0;
+  }
+  const maxLength = value.byteLength - offset;
+  if (maxLength < 0) throw new Error("specified offest is out of boundires");
+
+  if (length == undefined) {
+    length = maxLength;
+  } else {
+    length = +length;
+    if (length < 0) length = 0;
+    else if (length > maxLength)
+      throw new Error("specified length is out of boundires");
+  }
+  return new FastBuffer(value, offset, length);
+}
+
+function __fromObject(value) {
+  if (value.length !== undefined || isAnyArrayBuffer(value.buffer)) {
+    if (typeof value.length !== "number") return new FastBuffer();
+    return __fromArrayLike(value);
+  }
+}
+function __fromArrayLike(array) {
+  if (array.length <= 0) return new FastBuffer();
+  if (array.length >= poolSize >>> 1) {
+    const buffer = createUnsafeBuffer(length);
+    for (let i = 0; i < array.length; ++i) buffer[i] = array[i] & 255;
+    return buffer;
+  }
+  if (array.length > poolSize - poolOffset) createPool();
+  const buffer = new FastBuffer(allocPool, poolOffset, array.length);
+  for (let i = 0; i < array.length; ++i) buffer[i] = array[i] & 255;
   return buffer;
 }
 
-function __fromArrayBuffer(value, offset, length) {}
-function __fromObject(value) {}
-class Buffer {
-  constructor(arg, encodingOrOffest, length) {
-    if (typeof arg === "number") {
-      if (typeof encodingOrOffest === "string")
-        throw new TypeError(
-          "Invalid Argument the second argument has to be offset(number) if the first argument is a number"
-        );
-      Buffer.alloc(arg);
-    }
-    Buffer.from(arg, encodingOrOffest, length);
+function Buffer(arg, encodingOrOffest, length) {
+  if (typeof arg === "number") {
+    if (typeof encodingOrOffest === "string")
+      throw new TypeError(
+        "Invalid Argument the second argument has to be offset(number) if the first argument is a number"
+      );
+    Buffer.alloc(arg);
   }
-  static from(value, encodingOrOffest, length) {
-    if (typeof value === "string") return __fromString(value, encodingOrOffest);
-
-    if (typeof value === "object" && value !== null) {
-      if (isAnyArrayBuffer(value))
-        __fromArrayBuffer(value, encodingOrOffest, length);
-
-      const valueOf = value.valueOf && value.valueOf();
-      if (
-        valueOf != null &&
-        valueOf !== value &&
-        (typeof valueOf === "string" || typeof valueOf === "object")
-      ) {
-        from(valueOf, encodingOrOffest, length);
-      }
-
-      const ret = __fromObject(value);
-      if (ret) return ret;
-
-      if (typeof value[Symbol.toPrimitive] === "function") {
-        const toPrimitive = value[Symbol.toPrimitive]("string");
-        if (typeof toPrimitive === "string")
-          from(toPrimitive, encodingOrOffest, length);
-      }
-    }
-    throw new TypeError("Invalid arguments");
-  }
-
-  static alloc() {}
+  Buffer.from(arg, encodingOrOffest, length);
 }
 
+Buffer.from = function from(value, encodingOrOffest, length) {
+  if (typeof value === "string") return __fromString(value, encodingOrOffest);
 
+  if (typeof value === "object" && value !== null) {
+    if (isAnyArrayBuffer(value))
+      __fromArrayBuffer(value, encodingOrOffest, length);
 
-const buff2 = Buffer.from("Muhammad Medhat", "utf-8");
+    const valueOf = value.valueOf && value.valueOf();
+    if (
+      valueOf != null &&
+      valueOf !== value &&
+      (typeof valueOf === "string" || typeof valueOf === "object")
+    ) {
+      return from(valueOf, encodingOrOffest, length);
+    }
 
-log(buff2)
+    const ret = __fromObject(value);
+    if (ret) return ret;
 
-const buff1 = Buffer.from("弛", "utf-8");
+    if (typeof value[Symbol.toPrimitive] === "function") {
+      const toPrimitive = value[Symbol.toPrimitive]("string");
+      if (typeof toPrimitive === "string")
+        from(toPrimitive, encodingOrOffest, length);
+    }
+  }
+};
+function __fill(buff, fillValue, encoding) {
+  const offset = 0;
+  const end = buff.byteLength;
 
-log(buff1)
+  if (typeof fillValue === "string") {
+    const ops = getEncodingOps(encoding);
+    if (ops == undefined) throw new Error("Invalid encoding value");
+    if (fillValue.length === 0) return FastBuffer(length);
 
-const buff3 = new Uint8Array(allocPool, 18, 3);
+    buffer.fill(buff, fillValue, 0, end, ops.encodingVal);
+  } else if (typeof fillValue === "number") {
+    buffer.fill(buff, fillValue, 0, end);
+  }
+}
 
-log(buff3)
+Buffer.allocUnsafe = function (length) {
+  return createUnsafeBuffer(length);
+};
+
+Buffer.alloc = function (length, fill, encoding) {
+  length = +length;
+  if (isNaN(length)) throw new TypeError("Invalid length argument");
+  if (length > 0 && fill != undefined && fill !== 0) {
+    const buffer = createUnsafeBuffer(length);
+    __fill(buffer, fill, encoding);
+    return buffer;
+  }
+  return new FastBuffer(length);
+};
+const fs = internalBinding("fs");
+class Files {
+  static read(path, options, callback) {
+    let callbackFunc = null;
+    let opts = null;
+    if (typeof path !== "string") throw new TypeError("Invalid Path String");
+    if (typeof options === "function") {
+      callbackFunc = options;
+      opts = {
+        buffer: Buffer.alloc(16384),
+        offset: 0,
+        length: 16384,
+        position: 0,
+      };
+    } else {
+      if (callback == undefined)
+        throw new Error("a callback function must be provided");
+      callbackFunc = callback;
+      opts = options;
+      if (opts.buffer == undefined) opts.buffer = Buffer.alloc(16384);
+      if (opts.offset == undefined) opts.offset = 0;
+      if (opts.length == undefined) opts.length = 16384;
+      if (opts.position == undefined) opts.position = 0;
+    }
+    fs.readFileAsync(path, opts, callbackFunc);
+  }
+}
+const options = {
+  buffer : Buffer.alloc(10),
+  length : 1,
+  offset : 0,
+  position : 5,
+};
+Files.read("Hello.txt", options, (error, buffer, bytesRead) => {
+  if (error) throw new Error("invalid operation");
+  log(buffer.toString());
+  log(bytesRead);
+});

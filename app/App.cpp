@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include <stdio.h>
 
 EventLoop *App::loop = nullptr;
 
@@ -40,6 +41,8 @@ void App::SetupEnvironment()
 	Timers::loop = App::loop;
 	FileWatcher::loop = App::loop;
 	Buffer::loop = App::loop;
+	Buffer::global = this->GetGlobal();
+	Buffer::ctx = this->context;
 
 	this->GetGlobal()->Set(isolate, "log", FunctionTemplate::New(isolate, log));
 	this->GetGlobal()->Set(isolate, "internalBinding", FunctionTemplate::New(isolate, internalBinding));
@@ -104,6 +107,10 @@ void App::setupBufferModuleObject()
 
 	FunctionCreator byteLengthUtf8 = FunctionCreator(isolate, "byteLengthUtf8", Buffer::byteLengthUtf8);
 	FunctionCreator utf8Write = FunctionCreator(isolate, "utf8Write", Buffer::utf8Write);
+	FunctionCreator ucs2Write = FunctionCreator(isolate, "ucs2Write", Buffer::ucs2Write);
+	FunctionCreator fromUtf8 = FunctionCreator(isolate, "fromUtf8", Buffer::fromUtf8);
+	FunctionCreator fromUtf16 = FunctionCreator(isolate, "fromUtf16", Buffer::fromUtf16);
+	FunctionCreator fill = FunctionCreator(isolate, "fill", Buffer::fill);
 
 	v8::Local<v8::Context> context = Binder.Get(isolate)->CreationContext();
 	v8::Context::Scope handleScope(context);
@@ -111,11 +118,16 @@ void App::setupBufferModuleObject()
 
 	byteLengthUtf8.attachMethodToObject(bufferObj);
 	utf8Write.attachMethodToObject(bufferObj);
+	ucs2Write.attachMethodToObject(bufferObj);
+	fromUtf8.attachMethodToObject(bufferObj);
+	fromUtf16.attachMethodToObject(bufferObj);
+	fill.attachMethodToObject(bufferObj);
 
 	Buffer.Reset(isolate, bufferObj);
 	addPropertyToBinder("Buffer", Buffer.Get(isolate));
 }
-void App::logObject(int indentLevel, v8::Local<v8::Context> context, v8::Local<v8::Object> obj)
+
+void App::logObject(int indentLevel, v8::Local<v8::Context> context, v8::Local<v8::Object> &obj)
 {
 	auto isolate = context->GetIsolate();
 	v8::Local<v8::Array> properties = obj->GetPropertyNames(context).ToLocalChecked();
@@ -124,32 +136,34 @@ void App::logObject(int indentLevel, v8::Local<v8::Context> context, v8::Local<v
 		indent += " ";
 	for (int i = 0; i < properties->Length(); ++i)
 	{
+
 		v8::Local<v8::String> propoerty = properties->Get(context, i).ToLocalChecked().As<v8::String>();
+		// printf("%s\n", StaticHelpers::ToUtf8String(isolate,propoerty));
 		v8::Local<v8::Value> value = obj->Get(context, propoerty).ToLocalChecked();
+
 		if (value->IsFunction())
 		{
-			printf("%s : %s\n", (indent + StaticHelpers::ToString(isolate, propoerty)).c_str(), " => Native Code");
+			printf("%s : %s\n", (indent + StaticHelpers::ToUtf8String(isolate, propoerty)).c_str(), " => Native Code");
 		}
 		else if (value->IsObject())
 		{
-
-			printf("%s : %s\n", (indent + StaticHelpers::ToString(isolate, propoerty)).c_str(), "{");
-			logObject(indentLevel + 2, context, value.As<v8::Object>());
+			printf("%s : %s\n", (indent + StaticHelpers::ToUtf8String(isolate, propoerty)).c_str(), "{");
+			v8::Local<v8::Object> obj = value.As<v8::Object>();
+			logObject(indentLevel + 2, context, obj);
 			printf("%s\n", (indent + "}").c_str());
 		}
 		else
 		{
-			printf("%s : %s \n", (indent + StaticHelpers::ToString(isolate, propoerty)).c_str(), StaticHelpers::ToString(isolate, value));
+			printf("%s : %s \n", (indent + StaticHelpers::ToUtf8String(isolate, propoerty)).c_str(), StaticHelpers::ToUtf8String(isolate, value));
 		}
 	}
 }
 void logBuffer(char *ptr, int byteLength)
 {
-	printf("< ");
+	printf("< Buffer ");
 	for (int i = 0; i < byteLength; ++i, ptr++)
 		printf("%.2x ", *ptr & 255);
 	printf(">");
-	printf("\n");
 }
 void App::log(const FunctionCallbackInfo<Value> &args)
 {
@@ -160,17 +174,19 @@ void App::log(const FunctionCallbackInfo<Value> &args)
 
 		if (args[i]->IsFunction())
 		{
-			printf("%s %s\n", Local<v8::Function>::Cast(args[i])->GetName(), " => native code");
+			printf("%s %s\n", StaticHelpers::ToUtf8String(isolate, Local<v8::Function>::Cast(args[i])->GetName()), " => native code");
 		}
 		else if (isAnyArrayBuffer(args[i]))
 		{
 			char *data = nullptr;
 			size_t bufferLength;
+			size_t offset = 0;
 			if (args[i]->IsArrayBufferView())
 			{
 				v8::Local<v8::ArrayBufferView> array = v8::Local<v8::ArrayBufferView>::Cast(args[i]);
 				data = reinterpret_cast<char *>(array->Buffer()->GetBackingStore()->Data());
 				bufferLength = array->ByteLength();
+				data = data + array->ByteOffset();
 			}
 			else if (args[i]->IsArrayBuffer())
 			{
@@ -188,15 +204,35 @@ void App::log(const FunctionCallbackInfo<Value> &args)
 		}
 		else if (args[i]->IsObject())
 		{
+			v8::Local<v8::Object> obj = args[i].As<v8::Object>();
 			printf("%s\n", "{");
-			App::logObject(3, context, args[i].As<v8::Object>());
+			App::logObject(3, context, obj);
 			printf("%s\n", "}");
 		}
 		else
 		{
-			v8::Local<v8::String> v8String = args[i].As<v8::String>();
-			const char *str = StaticHelpers::ToString(isolate, v8String);
-			printf("%s ", str);
+
+			if (args[i]->IsNumber())
+			{
+				int64_t num = 0;
+				args[i]->IntegerValue(context).To(&num);
+				printf("%d ", num);
+			}
+			else if (args[i]->IsBoolean())
+			{
+				bool bol = args[i]->BooleanValue(isolate);
+				if (bol)
+					printf("%d ", bol);
+				else
+					printf("%d ", bol);
+			}
+
+			else
+			{
+				v8::Local<v8::String> v8String = args[i].As<v8::String>();
+				const char *str = StaticHelpers::ToUtf8String(isolate, v8String);
+				printf("%s ", str);
+			}
 		}
 	}
 	printf("\n");
@@ -208,8 +244,8 @@ void App::internalBinding(const FunctionCallbackInfo<Value> &args)
 	v8::Local<v8::Object> binder = Binder.Get(args.GetIsolate());
 	v8::Local<v8::Value> value = binder->Get(binder->CreationContext(), propertyName).ToLocalChecked();
 	args.GetReturnValue().Set(value);
-	// getZeroField(args);
 }
+
 
 void App::Start(int argc, char *argv[])
 {

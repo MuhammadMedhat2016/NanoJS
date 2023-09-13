@@ -31,7 +31,7 @@ void FileWatcher::watch(const v8::FunctionCallbackInfo<v8::Value> &args)
     job->args = new std::vector<v8::Persistent<v8::Value>>(0);
     FileWatcher::loop->registerJob();
     v8::Local<v8::Value> interval = options->Get(isolate->GetCurrentContext(), StaticHelpers::ToLocalString(isolate, "interval")).ToLocalChecked();
-    FileWatcher::watch(StaticHelpers::ToString(isolate, path), job, interval.As<v8::Integer>()->Value());
+    FileWatcher::watch(StaticHelpers::ToUtf8String(isolate, path), job, interval.As<v8::Integer>()->Value());
 }
 void watcher(const char *path, callbackJob *job, u_int32_t pollTimeInterval)
 {

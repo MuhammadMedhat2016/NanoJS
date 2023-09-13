@@ -18,7 +18,7 @@ struct Job
 };
 struct callbackJob : public Job
 {
-
+    std::vector<v8::Persistent<v8::Value>> * additionalData;
 };
 
 struct TimedJob : public Job
