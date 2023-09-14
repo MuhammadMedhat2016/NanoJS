@@ -33,7 +33,6 @@ int main(int argc, char *argv[])
 		// Call app start hook
 		app.Start(argc, argv);
 
-		app.loop->Run();
 	}
 
 	// Shutdown

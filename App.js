@@ -381,14 +381,28 @@ class Files {
     fs.readFileAsync(path, opts, callbackFunc);
   }
 }
-const options = {
-  buffer : Buffer.alloc(10),
-  length : 1,
-  offset : 0,
-  position : 5,
+/*
+let options = {
+  buffer: Buffer.alloc(20),
+  length: 20,
+  position: 0,
+  offset: 0,
 };
+
+*/
+/*
 Files.read("Hello.txt", options, (error, buffer, bytesRead) => {
   if (error) throw new Error("invalid operation");
-  log(buffer.toString());
-  log(bytesRead);
+  log(buffer)
 });
+*/
+
+
+
+
+fs.writeFileAsync("Hello.txt", "added to file 3", (a, b) => {
+  log(a);
+  log(b);
+})
+
+

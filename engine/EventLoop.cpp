@@ -32,7 +32,12 @@ void EventLoop::removeJob(Job *job)
 {
     callbackJob *ptr = dynamic_cast<callbackJob *>(job);
     if (ptr != NULL)
+    {
         this->callbackQueue->pop();
+        //callbackJob *Job = reinterpret_cast<callbackJob *>(job);
+        //for(int i = 0; i < Job->additionalData->size(); ++i) (*Job->additionalData)[i].Reset();
+        //delete Job->additionalData;
+    }
     else
     {
         this->timersQueue->pop();
@@ -44,6 +49,7 @@ void EventLoop::removeJob(Job *job)
             return;
         }
     }
+
     job->func.Reset();
     job->context.Reset();
     for (int i = 0; i < job->argc; ++i)
@@ -58,12 +64,15 @@ void EventLoop::removeJob(Job *job)
 void EventLoop::runJob(Job *job)
 {
     job->argc = job->args->size();
+    auto context = job->context.Get(isolate);
+    context->Enter();
     v8::Local<v8::Value> args[job->argc];
     for (int i = 0; i < job->args->size(); ++i)
         args[i] = (*job->args)[i].Get(isolate);
     v8::Local<v8::Function> function = job->func.Get(isolate);
-    function->Call(job->context.Get(isolate), v8::Undefined(isolate), job->argc, args);
+    function->Call(context, v8::Undefined(isolate), job->argc, args);
     this->removeJob(job);
+    context->Exit();
 }
 void EventLoop::Run()
 {

@@ -1,5 +1,6 @@
 #include "App.hpp"
 #include <stdio.h>
+#include <mutex>
 
 EventLoop *App::loop = nullptr;
 
@@ -176,6 +177,7 @@ void App::log(const FunctionCallbackInfo<Value> &args)
 		{
 			printf("%s %s\n", StaticHelpers::ToUtf8String(isolate, Local<v8::Function>::Cast(args[i])->GetName()), " => native code");
 		}
+		/*
 		else if (isAnyArrayBuffer(args[i]))
 		{
 			char *data = nullptr;
@@ -202,12 +204,17 @@ void App::log(const FunctionCallbackInfo<Value> &args)
 			}
 			logBuffer(data, bufferLength);
 		}
+		*/
 		else if (args[i]->IsObject())
 		{
+			printf("object \n");
+			/*
+			printf("yes iam here");
 			v8::Local<v8::Object> obj = args[i].As<v8::Object>();
 			printf("%s\n", "{");
 			App::logObject(3, context, obj);
 			printf("%s\n", "}");
+			*/
 		}
 		else
 		{
@@ -246,7 +253,6 @@ void App::internalBinding(const FunctionCallbackInfo<Value> &args)
 	args.GetReturnValue().Set(value);
 }
 
-
 void App::Start(int argc, char *argv[])
 {
 	for (int i = 1; i < argc; ++i)
@@ -261,5 +267,7 @@ void App::Start(int argc, char *argv[])
 		Context::Scope contextscope(context);
 		// Run the javascript file
 		this->RunJsFromFile(filename);
+
+		App::loop->Run();
 	}
 }

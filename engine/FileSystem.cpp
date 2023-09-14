@@ -4,30 +4,33 @@ EventLoop *File::loop;
 
 void readAsync(const char *path, callbackJob *job)
 {
+
     auto isolate = File::loop->isolate;
     auto context = job->context.Get(isolate);
+
     std::ifstream myfile(path, std::ios::in);
-    v8::Local<v8::Object> opts = (*job->additionalData)[0].Get(isolate).As<v8::Object>();
-    v8::Local<v8::Uint8Array> array = opts->Get(context, v8::String::NewFromUtf8(isolate, "buffer").ToLocalChecked()).ToLocalChecked().As<v8::Uint8Array>();
-    v8::Local<v8::Integer> v8Offset = opts->Get(context, v8::String::NewFromUtf8(isolate, "offset").ToLocalChecked()).ToLocalChecked().As<v8::Integer>();
-    v8::Local<v8::Integer> v8Length = opts->Get(context, v8::String::NewFromUtf8(isolate, "length").ToLocalChecked()).ToLocalChecked().As<v8::Integer>();
-    v8::Local<v8::Integer> v8Position = opts->Get(context, v8::String::NewFromUtf8(isolate, "position").ToLocalChecked()).ToLocalChecked().As<v8::Integer>();
-    
+
     int64_t offset, length, position;
-    v8Offset->IntegerValue(context).To(&offset);
-    v8Length->IntegerValue(context).To(&length);
-    v8Position->IntegerValue(context).To(&position);
-    printf("%d %d %d\n", offset, length, position);
+
+    v8::Local<v8::Uint8Array> array;
+
+    (*job->additionalData)[0].Get(isolate)->IntegerValue(context).To(&offset);
+    (*job->additionalData)[1].Get(isolate)->IntegerValue(context).To(&length);
+    (*job->additionalData)[2].Get(isolate)->IntegerValue(context).To(&position);
+    array = (*job->additionalData)[3].Get(isolate).As<v8::Uint8Array>();
+    printf("i am here 1!\n");
     char *buffer = reinterpret_cast<char *>(array->Buffer()->GetBackingStore()->Data());
-    char* data = buffer + offset;
+    buffer = buffer + offset;
+    printf("i am here 2!\n");
     myfile.seekg(position, std::ios::beg);
-    myfile.read(data, length);
+    myfile.read(buffer, length);
     std::streamsize bytesRead = myfile.gcount();
 
     job->args = new std::vector<v8::Persistent<v8::Value>>(3);
     (*job->args)[0].Reset(isolate, v8::Undefined(isolate));
     (*job->args)[1].Reset(isolate, array);
     (*job->args)[2].Reset(isolate, v8::Integer::New(isolate, static_cast<int>(bytesRead)));
+    printf("i am here 3!\n");
 
     File::loop->addCallbackJob(job);
     myfile.close();
@@ -41,16 +44,20 @@ void File::readFileAsync(const FunctionCallbackInfo<Value> &args)
     v8::Local<v8::Object> options = args[1].As<v8::Object>();
     v8::Local<v8::Function> callback = args[2].As<v8::Function>();
 
+    v8::Local<v8::Integer> v8Offset = options->Get(context, v8::String::NewFromUtf8(isolate, "offset").ToLocalChecked()).ToLocalChecked().As<v8::Integer>();
+    v8::Local<v8::Integer> v8Length = options->Get(context, v8::String::NewFromUtf8(isolate, "length").ToLocalChecked()).ToLocalChecked().As<v8::Integer>();
+    v8::Local<v8::Integer> v8Position = options->Get(context, v8::String::NewFromUtf8(isolate, "position").ToLocalChecked()).ToLocalChecked().As<v8::Integer>();
+    v8::Local<v8::Uint8Array> array = options->Get(context, v8::String::NewFromUtf8(isolate, "buffer").ToLocalChecked()).ToLocalChecked().As<v8::Uint8Array>();
+    
     const char *path = StaticHelpers::ToUtf8String(isolate, v8Path);
-    v8::Persistent<v8::Object> opts;
-
     callbackJob *job = new callbackJob();
     job->func.Reset(isolate, callback);
     job->context.Reset(isolate, context);
-    job->additionalData = new std::vector<v8::Persistent<v8::Value>>(1);
-
-    opts.Reset(isolate, options);
-    (*job->additionalData)[0].Reset(isolate, opts);
+    job->additionalData = new std::vector<v8::Persistent<v8::Value>>(4);
+    (*job->additionalData)[0].Reset(isolate, v8Offset);
+    (*job->additionalData)[1].Reset(isolate, v8Length);
+    (*job->additionalData)[2].Reset(isolate, v8Position);
+    (*job->additionalData)[3].Reset(isolate, array);
 
     File::loop->registerJob();
     std::thread thread(readAsync, path, job);
@@ -58,7 +65,6 @@ void File::readFileAsync(const FunctionCallbackInfo<Value> &args)
 }
 std::string File::readFileSync(const char *path)
 {
-
     std::ifstream file(path, std::ios::in);
     if (file.is_open())
     {
@@ -66,10 +72,6 @@ std::string File::readFileSync(const char *path)
         buffer << file.rdbuf();
         file.close();
         return buffer.str();
-    }
-    else
-    {
-        return "Unable to read the file maybe the file does not exist or the path is wrong";
     }
 }
 void File::readFileSync(const FunctionCallbackInfo<Value> &args)
