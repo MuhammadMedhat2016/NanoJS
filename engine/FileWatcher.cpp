@@ -1,12 +1,13 @@
 #include "FileWatcher.hpp"
 
+
 EventLoop *FileWatcher::loop;
 void cpyJob(callbackJob *srcJob, callbackJob *destJob)
 {
     auto isolate = FileWatcher::loop->isolate;
     destJob->args = new std::vector<v8::Persistent<v8::Value>>(0);
-    destJob->context.Reset(isolate, srcJob->context.Get(isolate));
-    destJob->func.Reset(isolate, srcJob->func.Get(isolate));
+    destJob->context->Reset(isolate, srcJob->context->Get(isolate));
+    destJob->func->Reset(isolate, srcJob->func->Get(isolate));
 }
 bool areEqual(char *str1, char *str2, int len)
 {
@@ -26,8 +27,11 @@ void FileWatcher::watch(const v8::FunctionCallbackInfo<v8::Value> &args)
     v8::Local<v8::Function> callback = args[2].As<v8::Function>();
 
     callbackJob *job = new callbackJob();
-    job->context.Reset(isolate, isolate->GetCurrentContext());
-    job->func.Reset(isolate, callback);
+    job->func = new v8::Persistent<v8::Function>();
+    job->context = new v8::Persistent<v8::Context>();
+    
+    job->context->Reset(isolate, isolate->GetCurrentContext());
+    job->func->Reset(isolate, callback);
     job->args = new std::vector<v8::Persistent<v8::Value>>(0);
     FileWatcher::loop->registerJob();
     v8::Local<v8::Value> interval = options->Get(isolate->GetCurrentContext(), StaticHelpers::ToLocalString(isolate, "interval")).ToLocalChecked();

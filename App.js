@@ -321,7 +321,7 @@ Buffer.from = function from(value, encodingOrOffest, length) {
     if (typeof value[Symbol.toPrimitive] === "function") {
       const toPrimitive = value[Symbol.toPrimitive]("string");
       if (typeof toPrimitive === "string")
-        from(toPrimitive, encodingOrOffest, length);
+        return from(toPrimitive, encodingOrOffest, length);
     }
   }
 };
@@ -381,28 +381,24 @@ class Files {
     fs.readFileAsync(path, opts, callbackFunc);
   }
 }
-/*
+
 let options = {
-  buffer: Buffer.alloc(20),
-  length: 20,
+  buffer: Buffer.alloc(25),
+  length: 25,
   position: 0,
   offset: 0,
 };
 
-*/
-/*
-Files.read("Hello.txt", options, (error, buffer, bytesRead) => {
-  if (error) throw new Error("invalid operation");
-  log(buffer)
+
+Files.read("hi.txt",options, (err, buff, bytesRead) => {
+  log(buff);
 });
-*/
 
+fs.writeFileAsync("Hello.txt", "Hi from writer", (err, bytesWritten) => {
+    log(bytesWritten);
+});
 
+for(let i = 0; i < 1000; ++i)
+  log(i);
 
-
-fs.writeFileAsync("Hello.txt", "added to file 3", (a, b) => {
-  log(a);
-  log(b);
-})
-
-
+log("main js thread");

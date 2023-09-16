@@ -2,6 +2,9 @@
 
 static std::mutex callbackMutex;
 static std::mutex timerMutex;
+extern std::vector<std::shared_future<callbackJob *>> vec;
+
+class callbackJob;
 
 EventLoop::EventLoop(v8::Isolate *isolate)
     : jobCount(0), shouldStop(true)
@@ -50,8 +53,8 @@ void EventLoop::removeJob(Job *job)
         }
     }
 
-    job->func.Reset();
-    job->context.Reset();
+    job->func->Reset();
+    job->context->Reset();
     for (int i = 0; i < job->argc; ++i)
         (*job->args)[i].Reset();
     delete job->args;
@@ -63,24 +66,32 @@ void EventLoop::removeJob(Job *job)
 
 void EventLoop::runJob(Job *job)
 {
+
     job->argc = job->args->size();
-    auto context = job->context.Get(isolate);
-    context->Enter();
+    auto context = job->context->Get(isolate);
     v8::Local<v8::Value> args[job->argc];
     for (int i = 0; i < job->args->size(); ++i)
         args[i] = (*job->args)[i].Get(isolate);
-    v8::Local<v8::Function> function = job->func.Get(isolate);
+    v8::Local<v8::Function> function = job->func->Get(isolate);
     function->Call(context, v8::Undefined(isolate), job->argc, args);
     this->removeJob(job);
-    context->Exit();
 }
 void EventLoop::Run()
 {
     while (!this->shouldStop)
     {
+
         this->runTimers();
         this->runCallbacks();
         this->updateTimers();
+        for (int i = 0; i < vec.size(); ++i)
+        {
+            if (vec[i].wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+            {
+                this->addCallbackJob(vec[i].get());
+                vec.erase(vec.begin() + i);
+            }
+        }
     }
 }
 void EventLoop::runTimers()

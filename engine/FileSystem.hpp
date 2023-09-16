@@ -2,7 +2,6 @@
 #include <fstream>
 #include <sstream>
 #include <functional>
-#include <thread>
 #include <queue>
 #include <cstring>
 #include <mutex>
@@ -13,6 +12,11 @@
 #include "Buffer.hpp"
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <thread>
+#include <future>
+
+
+//extern std::vector<std::thread> thread_pool;
 
 class File
 {

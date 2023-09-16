@@ -7,10 +7,12 @@
 #include <typeinfo>
 #include <string.h>
 #include <mutex>
+#include <future>
+#include <thread>
 struct Job
 {
-    v8::Persistent<v8::Function> func;
-    v8::Persistent<v8::Context> context;
+    v8::Persistent<v8::Function> *func;
+    v8::Persistent<v8::Context> *context;
     std::vector<v8::Persistent<v8::Value>> *args;
 
     int argc;
@@ -18,7 +20,7 @@ struct Job
 };
 struct callbackJob : public Job
 {
-    std::vector<v8::Persistent<v8::Value>> * additionalData;
+    std::vector<v8::Persistent<v8::Value>> *additionalData;
 };
 
 struct TimedJob : public Job
@@ -40,6 +42,7 @@ public:
         return false;
     }
 };
+// extern std::vector<std::thread> thread_pool;
 
 class EventLoop
 {

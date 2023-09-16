@@ -14,9 +14,12 @@ void Timers::setTimeOut(const v8::FunctionCallbackInfo<v8::Value> &args)
 
     TimedJob *tJob = new TimedJob();
     tJob->startTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    tJob->func.Reset(isolate, callback);
+    tJob->func = new v8::Persistent<v8::Function>();
+    tJob->context = new v8::Persistent<v8::Context>();
+    
+    tJob->func->Reset(isolate, callback);
     tJob->args = new std::vector<v8::Persistent<v8::Value>>(args.Length() - 2);
-    tJob->context.Reset(isolate, context);
+    tJob->context->Reset(isolate, context);
     tJob->isInterval = false;
     tJob->duration = duration;
     for (int i = 2; i < args.Length(); ++i)
@@ -39,9 +42,12 @@ void Timers::setInterval(const v8::FunctionCallbackInfo<v8::Value> &args)
 
     TimedJob *tJob = new TimedJob();
     tJob->startTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    tJob->func.Reset(isolate, callback);
+    tJob->func = new v8::Persistent<v8::Function>();
+    tJob->context = new v8::Persistent<v8::Context>();
+    
+    tJob->func->Reset(isolate, callback);
     tJob->args = new std::vector<v8::Persistent<v8::Value>>(args.Length() - 2);
-    tJob->context.Reset(isolate, context);
+    tJob->context->Reset(isolate, context);
     tJob->isInterval = true;
     tJob->duration = duration;
     for (int i = 2; i < args.Length(); ++i)

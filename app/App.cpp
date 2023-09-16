@@ -4,6 +4,10 @@
 
 EventLoop *App::loop = nullptr;
 
+std::vector<std::shared_future<callbackJob*>> vec;
+
+
+
 v8::Persistent<v8::Object> App::Binder;
 v8::Persistent<v8::Object> App::FileSystem;
 v8::Persistent<v8::Object> App::Buffer;
@@ -35,6 +39,7 @@ void getZeroField(const v8::FunctionCallbackInfo<v8::Value> &args)
 
 void App::SetupEnvironment()
 {
+
 	auto isolate = this->GetIsolate();
 	App::allocator = this->getArrayBufferAllocator();
 	App::loop = new EventLoop(this->GetIsolate());
@@ -177,7 +182,7 @@ void App::log(const FunctionCallbackInfo<Value> &args)
 		{
 			printf("%s %s\n", StaticHelpers::ToUtf8String(isolate, Local<v8::Function>::Cast(args[i])->GetName()), " => native code");
 		}
-		/*
+	
 		else if (isAnyArrayBuffer(args[i]))
 		{
 			char *data = nullptr;
@@ -204,7 +209,6 @@ void App::log(const FunctionCallbackInfo<Value> &args)
 			}
 			logBuffer(data, bufferLength);
 		}
-		*/
 		else if (args[i]->IsObject())
 		{
 			printf("object \n");

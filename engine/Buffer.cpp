@@ -15,7 +15,7 @@ void Buffer::utf8Write(const v8::FunctionCallbackInfo<v8::Value> &args)
 {
     v8::Local<v8::Uint8Array> buffer = args[0].As<v8::Uint8Array>();
     v8::Local<v8::String> str = args[1].As<v8::String>();
-
+    printf("%d\n", buffer->IsUint8Array());
     int64_t offset = 0;
     args[2].As<v8::Integer>()->IntegerValue(args.GetIsolate()->GetCurrentContext()).To(&offset);
     v8::Local<v8::Integer> length = args[3].As<v8::Integer>();
