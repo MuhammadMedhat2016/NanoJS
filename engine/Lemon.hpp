@@ -8,8 +8,8 @@
 #include "Timers.hpp"
 #include "FileSystem.hpp"
 #include "StaticHelpers.hpp"
-#include "FileWatcher.hpp"
 #include "Buffer.hpp"
+
 
 using v8::Local;
 using v8::MaybeLocal;

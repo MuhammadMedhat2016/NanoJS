@@ -7,22 +7,83 @@
 #include <typeinfo>
 #include <string.h>
 #include <mutex>
-#include <future>
 #include <thread>
+#include <any>
+#include <typeinfo>
+#include <stdexcept>
+#include <variant>
+#include <type_traits>
+#include <utility>
+
+class value
+{
+public:
+    template <typename T>
+    void setValue(const T &value)
+    {
+        storedValue_ = std::make_any<T>(value);
+    }
+
+    template <typename T>
+    T getValue() const
+    {
+        try
+        {
+            return std::any_cast<T>(storedValue_);
+        }
+        catch (const std::bad_any_cast& e)
+        {
+            printf("Error while converting !!\n");
+        }
+    }
+
+private:
+    std::any storedValue_;
+};
+
+struct callbackJob;
+struct TimedJob;
+
+struct objectProject
+{
+    std::vector<std::pair<const char *, std::string>> property;
+    std::vector<value*> values;
+    ~objectProject();
+};
+
+class message
+{
+public:
+    message();
+    callbackJob *job;
+    std::vector<objectProject*> *objects;
+    void build();
+    ~message();
+};
+
+class msgQueue
+{
+    std::queue<message *> msgQueue;
+
+public:
+    void addMsgJob(message *);
+    message *getFront();
+    bool empty();
+};
 struct Job
 {
     v8::Persistent<v8::Function> *func;
     v8::Persistent<v8::Context> *context;
     std::vector<v8::Persistent<v8::Value>> *args;
-
+    std::vector<v8::Persistent<v8::Value>> *additionalData;
     int argc;
+    bool on = true;
     virtual void dummy(){};
+    ~Job();
 };
 struct callbackJob : public Job
 {
-    std::vector<v8::Persistent<v8::Value>> *additionalData;
 };
-
 struct TimedJob : public Job
 {
     time_t startTime;
@@ -42,13 +103,10 @@ public:
         return false;
     }
 };
-// extern std::vector<std::thread> thread_pool;
 
 class EventLoop
 {
 private:
-    std::queue<callbackJob *> *callbackQueue;
-    std::queue<TimedJob *> *timersQueue;
     int jobCount;
     bool shouldStop;
     time_t startTime;
@@ -59,6 +117,9 @@ private:
     void updateTimers();
 
 public:
+    std::queue<callbackJob *> *callbackQueue;
+    std::queue<TimedJob *> *timersQueue;
+    msgQueue *mQu;
     v8::Isolate *isolate;
     void runJob(Job *job);
     EventLoop(v8::Isolate *);
@@ -68,6 +129,7 @@ public:
     void registerJob();
     void addJobToTimersHeap(TimedJob *job);
     void removeJobFromTimersHeap();
+    void withdrawJob();
 
     TimedJob *getTopTimer();
     time_t getLoopTime();

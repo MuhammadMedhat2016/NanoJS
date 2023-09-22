@@ -3,9 +3,10 @@
 #include <mutex>
 
 EventLoop *App::loop = nullptr;
-
+EventLoop* lp;
+v8::Isolate* iso;
+EventLoop* Eloop;
 std::vector<std::shared_future<callbackJob*>> vec;
-
 
 
 v8::Persistent<v8::Object> App::Binder;
@@ -41,13 +42,15 @@ void App::SetupEnvironment()
 {
 
 	auto isolate = this->GetIsolate();
+	iso = isolate;
 	App::allocator = this->getArrayBufferAllocator();
 	App::loop = new EventLoop(this->GetIsolate());
+	lp = App::loop;
 	File::loop = App::loop;
 	Timers::loop = App::loop;
-	FileWatcher::loop = App::loop;
 	Buffer::loop = App::loop;
 	Buffer::global = this->GetGlobal();
+	
 	Buffer::ctx = this->context;
 
 	this->GetGlobal()->Set(isolate, "log", FunctionTemplate::New(isolate, log));
@@ -90,7 +93,7 @@ void App::setupFileSystemModuleObject()
 	FunctionCreator writeFileAsync = FunctionCreator(isolate, "writeFileAsync", File::writeFileAsync);
 	FunctionCreator getStatsAsync = FunctionCreator(isolate, "getStatsAsync", File::getStatsAsync);
 	FunctionCreator getStatsSync = FunctionCreator(isolate, "getStatsSync", File::getStatsSync);
-	FunctionCreator watch = FunctionCreator(isolate, "watch", FileWatcher::watch);
+	FunctionCreator watch = FunctionCreator(isolate, "watchFile", File::watchFile);
 
 	v8::Local<v8::Context> context = Binder.Get(isolate)->CreationContext();
 	v8::Context::Scope handleScope(context);
@@ -160,7 +163,7 @@ void App::logObject(int indentLevel, v8::Local<v8::Context> context, v8::Local<v
 		}
 		else
 		{
-			printf("%s : %s \n", (indent + StaticHelpers::ToUtf8String(isolate, propoerty)).c_str(), StaticHelpers::ToUtf8String(isolate, value));
+			printf("%s : %s \n", (indent + StaticHelpers::ToUtf8String(isolate, propoerty)).c_str(), StaticHelpers::ToUtf8String(isolate, value->ToString(context).ToLocalChecked()));
 		}
 	}
 }
@@ -171,6 +174,7 @@ void logBuffer(char *ptr, int byteLength)
 		printf("%.2x ", *ptr & 255);
 	printf(">");
 }
+
 void App::log(const FunctionCallbackInfo<Value> &args)
 {
 	auto isolate = args.GetIsolate();
@@ -211,14 +215,10 @@ void App::log(const FunctionCallbackInfo<Value> &args)
 		}
 		else if (args[i]->IsObject())
 		{
-			printf("object \n");
-			/*
-			printf("yes iam here");
 			v8::Local<v8::Object> obj = args[i].As<v8::Object>();
 			printf("%s\n", "{");
 			App::logObject(3, context, obj);
 			printf("%s\n", "}");
-			*/
 		}
 		else
 		{

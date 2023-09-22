@@ -3,6 +3,7 @@
 EventLoop *Buffer::loop;
 Local<ObjectTemplate> Buffer::global;
 v8::Local<v8::Context> Buffer::ctx;
+
 void Buffer::byteLengthUtf8(const v8::FunctionCallbackInfo<v8::Value> &args)
 {
     auto isolate = loop->isolate;

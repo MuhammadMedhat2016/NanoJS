@@ -12,7 +12,6 @@ define INCLUDE
 	engine/FileSystem.cpp
 	engine/Timers.cpp
 	engine/FunctionCreator.cpp
-	engine/FileWatcher.cpp
 	engine/Buffers/NestArrayBufferAllocator.cpp
 	engine/lib/v8/include/v8.h
 	engine/Buffer.cpp
@@ -36,4 +35,4 @@ export LIB
 export OBJ
 
 build:
-	$(CXX) -I $$INCLUDE $$APP -L $$LIB -l $$OBJ -std=c++0x -pthread -o lemon
+	$(CXX) -I $$INCLUDE $$APP -L $$LIB -l $$OBJ -std=c++20 -pthread -o lemon

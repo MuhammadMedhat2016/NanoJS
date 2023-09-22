@@ -356,16 +356,17 @@ Buffer.alloc = function (length, fill, encoding) {
 };
 const fs = internalBinding("fs");
 class Files {
-  static read(path, options, callback) {
+  static read(path, buffer, options, callback) {
     let callbackFunc = null;
     let opts = null;
     if (typeof path !== "string") throw new TypeError("Invalid Path String");
+    if (!(buffer instanceof Buffer))
+      throw new TypeError("a Buffer must be specified as second argument");
     if (typeof options === "function") {
       callbackFunc = options;
       opts = {
-        buffer: Buffer.alloc(16384),
         offset: 0,
-        length: 16384,
+        length: buffer.byteLength,
         position: 0,
       };
     } else {
@@ -373,32 +374,71 @@ class Files {
         throw new Error("a callback function must be provided");
       callbackFunc = callback;
       opts = options;
-      if (opts.buffer == undefined) opts.buffer = Buffer.alloc(16384);
       if (opts.offset == undefined) opts.offset = 0;
-      if (opts.length == undefined) opts.length = 16384;
+      if (opts.length == undefined) opts.length = buffer.byteLength;
       if (opts.position == undefined) opts.position = 0;
     }
-    fs.readFileAsync(path, opts, callbackFunc);
+    function callbackWrapper(err, bytesRead) {
+      callbackFunc(err, buffer, bytesRead);
+    }
+    fs.readFileAsync(path, buffer, opts, callbackWrapper);
+  }
+  static write(path, data, options, callback) {
+    const opts = {
+      encoding: "utf-8",
+      flag: "w",
+    };
+    let dataToWrite;
+    if (typeof path !== "string") throw new TypeError("Path must be a string");
+    if (data == undefined)
+      throw new Error("data must be specified to write it into the file");
+    if (typeof options === "function") {
+      callback = options;
+      options = opts;
+    }
+    if (options) {
+      if (typeof data == "string") {
+        if (options.encoding) opts.encoding = options.encoding;
+        if (options.flag) opts.flag = options.flag;
+        dataToWrite = Buffer.from(data, opts.encoding);
+      } else dataToWrite = Buffer.from(data, 0, data.length);
+    }
+    fs.writeFileAsync(path, dataToWrite, opts.flag, callback);
+  }
+  static readFile(path, callback) {
+    if (typeof path !== "string")
+      throw new TypeError("Invalid Path, it must be a string");
+    if (typeof callback !== "function")
+      throw new TypeError("Invalid callback, it must be a function");
+
+    fs.getStatsAsync(path, (error, obj) => {
+      const fileSize = obj.size;
+      const buffer = Buffer.alloc(fileSize);
+      function callbackWrapper(err, bytesRead) {
+        callback(err, buffer);
+      }
+      Files.read(path, buffer, callbackWrapper);
+    });
+  }
+  static watchFile(path, options, callback) {
+    if(typeof path !== "string") throw new TypeError("invalid path type, it should be a string");
+    const opts = {
+      interval : 1000,
+    }
+    if(typeof options === "function"){
+      callback = options;
+    }
+    
+    if(!options.interval) opts.interval = options.interval;
+
+    return fs.watchFile(path, opts, callback);
+
   }
 }
 
-let options = {
-  buffer: Buffer.alloc(25),
-  length: 25,
-  position: 0,
-  offset: 0,
-};
 
+let arr = Files.watchFile("Hello.txt", (err, listener) => {
+  log(listener);
+})
 
-Files.read("hi.txt",options, (err, buff, bytesRead) => {
-  log(buff);
-});
-
-fs.writeFileAsync("Hello.txt", "Hi from writer", (err, bytesWritten) => {
-    log(bytesWritten);
-});
-
-for(let i = 0; i < 1000; ++i)
-  log(i);
-
-log("main js thread");
+setTimeOut(() => {arr[0] = 1}, 5000);

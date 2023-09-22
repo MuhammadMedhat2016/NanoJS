@@ -7,6 +7,7 @@
 
 using v8::Context;
 
+
 class App : public Lemon
 {
 
@@ -20,7 +21,7 @@ public:
 	static void log(const FunctionCallbackInfo<Value> &args);
 	static void internalBinding(const FunctionCallbackInfo<Value> &args);
 	static void logObject(int indentLevel, v8::Local<v8::Context> context, v8::Local<v8::Object> &obj);
-
+	
 	void setBinderObject();
 	void addPropertyToBinder(const char *propertyName, v8::Local<v8::Value> propertyValue);
 	void setupFileSystemModuleObject();
