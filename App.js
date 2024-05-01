@@ -437,8 +437,11 @@ class Files {
 }
 
 
-let arr = Files.watchFile("Hello.txt", (err, listener) => {
-  log(listener);
+Files.read("Hello.txt", Buffer.alloc(100), (err, buffer,bytesRead)=> {
+  log(buffer.toString("utf-8"))
+  log(bytesRead)
 })
 
-setTimeOut(() => {arr[0] = 1}, 5000);
+for(let i = 0; i < 100; i++) {
+  log("Hello World");
+}
